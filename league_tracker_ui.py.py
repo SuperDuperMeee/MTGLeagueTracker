@@ -33,7 +33,10 @@ class CommanderLeague:
         }
         self.history = []
 
-    def record_game_results(self, results_dict, notes="", mvp="", deck_used=""):
+    def record_game_results(self, results_dict, notes="", mvp="", decks_used=None):
+        if decks_used is None:
+            decks_used = {}
+
         placement_points = {
             "1st": 5,
             "2nd": 3,
@@ -41,12 +44,13 @@ class CommanderLeague:
             "4th": 1,
             "5th+": 0
         }
+
         game = {
             "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "results": results_dict,
             "notes": notes,
             "mvp": mvp,
-            "deck_used": deck_used
+            "decks_used": decks_used
         }
         self.history.append(game)
 
@@ -157,6 +161,7 @@ class LeagueApp:
 
         placement_options = ["1st", "2nd", "3rd", "4th", "5th+", "Did Not Play"]
         entries = {}
+        deck_entries = {}
 
         player_frame = tk.Frame(dialog, bg=self.bg_color)
         player_frame.pack(fill="both", expand=True)
@@ -179,9 +184,14 @@ class LeagueApp:
             color = self.league.players[player].get("color", "gray")
             tk.Label(row, bg=color, width=2).pack(side="left", padx=(5, 5))
             tk.Label(row, text=player, bg=self.bg_color, fg=self.fg_color, width=15, anchor="w").pack(side="left")
+
             var = tk.StringVar(value="Did Not Play")
             tk.OptionMenu(row, var, *placement_options).pack(side="left", padx=5)
             entries[player] = var
+
+            deck_var = tk.StringVar()
+            tk.Entry(row, textvariable=deck_var, width=20).pack(side="left", padx=(5, 5))
+            deck_entries[player] = deck_var
 
         form = tk.Frame(dialog, bg=self.bg_color, padx=10, pady=10)
         form.pack(fill="x")
@@ -197,21 +207,19 @@ class LeagueApp:
             mvp_var.set(mvp_choices[0])
         tk.OptionMenu(form, mvp_var, *mvp_choices).pack(anchor="w", pady=(0, 10))
 
-        tk.Label(form, text="Deck Used:", bg=self.bg_color, fg=self.fg_color).pack(anchor="w")
-        deck_entry = tk.Entry(form, width=50)
-        deck_entry.pack(anchor="w", pady=(0, 10))
-
         def record():
             results = {p: var.get() for p, var in entries.items()}
             if all(r == "Did Not Play" for r in results.values()):
                 messagebox.showerror("Error", "At least one player must have a placement.")
                 return
 
+            decks_used = {p: deck_entries[p].get().strip() for p in entries}
+
             self.league.record_game_results(
                 results,
                 notes=notes_entry.get().strip(),
                 mvp=mvp_var.get().strip(),
-                deck_used=deck_entry.get().strip()
+                decks_used=decks_used
             )
             messagebox.showinfo("Success", "Game result recorded.")
             dialog.destroy()
@@ -238,7 +246,11 @@ class LeagueApp:
                 message += f"  Notes: {game['notes']}\n"
             if game.get("mvp"):
                 message += f"  MVP: {game['mvp']}\n"
-            if game.get("deck_used"):
+            if game.get("decks_used"):
+                for player, deck in game["decks_used"].items():
+                    if deck:
+                        message += f"  {player}'s Deck: {deck}\n"
+            elif game.get("deck_used"):
                 message += f"  Deck Used: {game['deck_used']}\n"
             message += "\n"
         messagebox.showinfo("Game History", message)
